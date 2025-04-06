@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Espace Professeur</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0;
+        }
+        h2 {
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .list-item {
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            cursor: pointer;
+        }
+        .list-item:hover {
+            background-color: #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="#class-list">Liste des classe</a></li>
+            <li><a href="#reclamation-list">Liste des Réclamation</a></li>
+        </ul>
+    </nav>
+    <div class="container">
+        <h2>Bienvenue, Professeur</h2>
+
+        <!-- Section des classes -->
+        <div class="section">
+            <h3>Vos Classes</h3>
+            <div id="class-list">
+
+            </div>
+        </div>
+
+        <!-- Section des réclamations -->
+        <div class="section">
+            <h3>Réclamations des Étudiants</h3>
+            <div id="reclamation-list">
+
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // Récupérer l'ID du professeur depuis l'URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const idProfesseur = urlParams.get('id'); // Récupère l'ID du professeur de l'URL
+    
+        if (idProfesseur) {
+            // Récupérer la liste des classes et des UEs du professeur
+            fetch(`/afficher_classe?id=${idProfesseur}`)
+            .then(response => response.json())
+            .then(data => {
+                const ul = document.getElementById('class-list');
+                ul.innerHTML = ''; // Vider la liste avant d'ajouter les nouveaux éléments
+                data.forEach(item => {
+                    const li = document.createElement('li');
+                    li.textContent = `${item.nom_classe} - ${item.nom_ue}`; // Afficher le nom de la classe et de l'UE
+                    li.dataset.id = item.id_professeur; // Associer l'ID du professeur à l'élément
+                    li.dataset.id = item.id_ue;
+
+                    let id_classe = String(item.id_classe);
+                    let id_ue = String(item.id_ue);
+
+                    // Redirection au clic vers la page de gestion du professeur
+                    li.addEventListener('click', () => {
+                        window.location.href = `/tab_note?classe=${id_classe}&ue=${id_ue}`;
+                    });
+    
+                    ul.appendChild(li);
+                });
+            })
+            .catch(err => console.error('Erreur de récupération des données:', err));
+        } else {
+            console.error('ID du professeur non trouvé dans l\'URL');
+        }
+</script>
+</body>
+</html>

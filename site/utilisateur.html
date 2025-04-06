@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion des utilisateurs</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="/admin">Home</a></li>
+            <li><a href="#addProfForm">Ajouter un Professeur</a></li>
+            <li><a href="#addEtudForm">Ajouter un Étudiant</a></li>
+            <li><a href="/acceuil">deconnexion</a></li>
+        </ul>
+    </nav>
+    
+    <div class="container">
+        <!-- Partie Professeur -->
+        <div class="section" id="profSection">
+            <h2>Professeur</h2>
+            <input type="text" id="searchProf" placeholder="Rechercher un professeur...">
+            <ul id="profList"></ul>
+            <br><h2 id="addProfForm">Ajouter un Professeur</h2>
+            <form action="/ajout_prof" method="post">
+                <input type="text" id="nomP" name="nom" placeholder="Nom du professeur" required>
+                <input type="email" id="emailP" name="email" placeholder="Email du professeur" required>
+                <input type="password" id="mdpP" name="mot_de_passe" placeholder="Mot de passe" required>
+                <button type="submit">Ajouter</button>
+            </form>
+        </div>
+
+        <!-- Partie Étudiant -->
+        <div class="section" id="etudSection">
+            <h2>Étudiants</h2>
+            <input type="text" id="searchEtud" placeholder="Rechercher un étudiant par nom ou classe...">
+            <ul id="EtudList"></ul>
+           <br> <h2 id="addEtudForm">Ajouter un Étudiant</h2>
+            <form action="/ajout_Etud" method="post">
+                <input type="text" id="nomE" name="nom" placeholder="Nom de l'étudiant" required>
+                <input type="password" id="mdpE" name="mot_de_passe" placeholder="Mot de passe" required>
+                <!-- Liste déroulante pour la filière -->
+                <label for="filiere">Filière :</label>
+                <select id="filiere" name="id_filiere" required>
+                    <!-- Options seront ajoutées ici via JavaScript -->
+                </select>
+                <!-- Liste déroulante pour l'année de licence -->
+                <label for="annee">Année de Licence :</label>
+                <select id="annee" name="annee_licence" required>
+                    <option value="1">Licence 1</option>
+                    <option value="2">Licence 2</option>
+                    <option value="3">Licence 3</option>
+                </select>
+                <button type="submit">Ajouter l'Étudiant</button>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+  // Récupérer la liste des professeurs et ajouter la recherche
+  fetch('/afficher_prof')
+    .then(response => response.json())
+    .then(data => {
+        const ul = document.getElementById('profList');
+        ul.innerHTML = ''; // Vider la liste avant d'ajouter les nouveaux éléments
+        data.forEach(item => {
+            const li = document.createElement('li');
+            li.textContent = `Nom: ${item.nom}, Email: ${item.email}`;
+            li.dataset.id = item.id_professeur; // Associer l'ID du professeur à l'élément
+            li.dataset.nom = item.nom.toLowerCase(); // Ajouter l'attribut data-nom
+            let id = String(item.id_professeur);
+
+            // Redirection au clic vers la page de gestion du professeur
+            li.addEventListener('click', () => {
+                window.location.href = `/gestion_prof?id=${id}`;
+            });
+
+            ul.appendChild(li);
+        });
+    })
+    .catch(err => console.error('Erreur de récupération des données:', err));
+
+// Récupérer la liste des étudiants et ajouter la recherche
+fetch('/afficher_Etud')
+    .then(response => response.json())
+    .then(data => {
+        const ul = document.getElementById('EtudList');
+        ul.innerHTML = ''; // Vider la liste avant d'ajouter les nouveaux éléments
+        data.forEach(item => {
+            const li = document.createElement('li');
+            li.textContent = `Nom: ${item.etudiant_nom}, Classe: ${item.classe_nom}`;
+            li.dataset.nom = item.etudiant_nom.toLowerCase(); // Ajouter l'attribut data-nom
+            li.dataset.classe = item.classe_nom.toLowerCase(); // Ajouter l'attribut data-classe
+            li.dataset.id = item.id_etudiant; // Associer l'ID de l'etudiant à l'élément
+            let id = String(item.id_etudiant);
+              // Redirection au clic vers la page de gestion du professeur
+              li.addEventListener('click', () => {
+                window.location.href = `/gestion_etud?id=${id}`;
+            });
+            ul.appendChild(li);
+        });
+    })
+    .catch(err => console.error('Erreur de récupération des données:', err));
+
+
+        // Fonction pour récupérer les données des filières pour l'ajout d'étudiants
+        fetch('/api/filieres')
+            .then(response => response.json())
+            .then(filieres => {
+                const filiereSelect = document.getElementById('filiere');
+                filieres.forEach(filiere => {
+                    const option = document.createElement('option');
+                    option.value = filiere.id_filiere;
+                    option.textContent = filiere.nom;
+                    filiereSelect.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Erreur lors de la récupération des filières:', error));
+                    // Fonction de recherche pour les professeurs
+        document.getElementById('searchProf').addEventListener('input', function() {
+            let searchValue = this.value.toLowerCase();
+            document.querySelectorAll('#profList li').forEach(li => {
+                li.style.display = li.dataset.nom.includes(searchValue) ? '' : 'none';
+            });
+        });
+
+        // Fonction de recherche pour les étudiants
+        document.getElementById('searchEtud').addEventListener('input', function() {
+            let searchValue = this.value.toLowerCase();
+            document.querySelectorAll('#EtudList li').forEach(li => {
+                li.style.display = li.dataset.nom.includes(searchValue) || li.dataset.classe.includes(searchValue) ? '' : 'none';
+            });
+        });
+    </script>
+
+</body>
+
+</html>

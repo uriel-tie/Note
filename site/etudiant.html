@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tableau des Notes</title>
+    <link rel="stylesheet" href="styletab.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            text-align: center;
+        }
+        .container {
+            max-width: 90%;
+            margin: auto;
+        }
+        .btn-container {
+            margin-top: 20px;
+        }
+        .btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            text-decoration: none;
+            display: inline-block; /* Toujours affiché */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Tableau des Notes</h2>
+        <table id="notesTable">
+            <thead>
+                <tr id="headerRow">
+                    <th>Ue</th>
+                    <th id="notesHeader">Note 1</th>
+                    <th>Moyenne</th>
+                </tr>
+            </thead>
+            <tbody id="studentsTable">
+            </tbody>
+        </table>
+        
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+            const idClasse = urlParams.get("classe");
+            const idue = urlParams.get("ue");
+        document.addEventListener("DOMContentLoaded", function () {
+            const studentsTable = document.getElementById("studentsTable");
+            const headerRow = document.getElementById("headerRow");
+            const notesTable = document.getElementById("notesTable");
+            const notesHeader = document.getElementById("notesHeader");
+            const addNoteBtn = document.getElementById("addNoteBtn");
+            if (idClasse && idue) {
+        addNoteBtn.href = `/note?classe=${idClasse}&ue=${idue}`;
+    }
+
+            
+
+            if (!idClasse || !idue) {
+                console.error("Paramètres manquants dans l'URL");
+                return;
+            }
+
+            function fetchNotes() {
+                const studentsUrl = `http://localhost:3000/etudiants/${idClasse}`;
+                const notesUrl = `http://localhost:3000/notes/${idClasse}/${idue}`;
+
+                Promise.all([fetch(studentsUrl), fetch(notesUrl)])
+                    .then(responses => {
+                        if (!responses[0].ok || !responses[1].ok) {
+                            throw new Error("Erreur lors de la récupération des données");
+                        }
+                        return Promise.all(responses.map(response => response.json()));
+                    })
+                    .then(([students, notes]) => {
+                        displayNotes(students, notes);
+                    })
+                    .catch(error => {
+                        console.error("Erreur :", error);
+                    });
+            }
+
+            function displayNotes(students, notes) {
+                if (notes.length === 0) {
+                    notesTable.style.display = "none";
+                    return;
+                }
+
+                notesTable.style.display = "table";
+
+                let maxOrder = 1;
+                let studentNotes = {};
+
+                students.forEach(student => {
+                    studentNotes[student.id_etudiant] = {
+                        nom: student.nom,
+                        notes: {},
+                        moyenne: 0
+                    };
+                });
+
+                notes.forEach(note => {
+                    if (!studentNotes[note.id_etudiant]) return;
+                    studentNotes[note.id_etudiant].notes[note.ordre] = {
+                        valeur: parseFloat(note.valeur),
+                        coefficient: parseFloat(note.coefficient)
+                    };
+                    maxOrder = Math.max(maxOrder, note.ordre);
+                });
+
+                // Suppression des anciennes colonnes ajoutées dynamiquement
+                while (headerRow.children.length > 3) {
+                    headerRow.removeChild(headerRow.lastChild);
+                }
+
+                for (let i = maxOrder; i >= 2; i--) {
+                    let th = document.createElement("th");
+                    th.textContent = `Note ${i}`;
+                    headerRow.insertBefore(th, notesHeader.nextSibling);
+                }
+
+                studentsTable.innerHTML = "";
+                for (let id in studentNotes) {
+                    let student = studentNotes[id];
+                    let row = document.createElement("tr");
+                    let totalPoints = 0, totalCoef = 0;
+
+                    let nameCell = document.createElement("td");
+                    nameCell.textContent = student.nom;
+                    row.appendChild(nameCell);
+
+                    for (let i = 1; i <= maxOrder; i++) {
+                        let cell = document.createElement("td");
+                        if (student.notes[i]) {
+                            cell.textContent = `${student.notes[i].valeur} (${student.notes[i].coefficient})`;
+                            totalPoints += student.notes[i].valeur * student.notes[i].coefficient;
+                            totalCoef += student.notes[i].coefficient;
+                        } else {
+                            cell.textContent = "-";
+                        }
+                        row.appendChild(cell);
+                    }
+
+                    let moyenneCell = document.createElement("td");
+                    moyenneCell.textContent = totalCoef > 0 ? (totalPoints / totalCoef).toFixed(2) : "N/A";
+                    row.appendChild(moyenneCell);
+
+                    studentsTable.appendChild(row);
+                }
+            }
+
+            fetchNotes();
+        });
+    </script>
+</body>
+</html>

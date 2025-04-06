@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion des UE</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a onclick="location.href='/admin'">Home</a></li>
+            <li><a href="#createUEForm">Créer une UE</a></li>
+            <li><a href="#ueList">Liste des UE</a></li>
+            <li><a href="#assignUEForm">Assigner une UE</a></li>
+            <li><a onclick="location.href='/acceuil'">deconnexion</a></li>
+        </ul>
+    </nav>
+    <h1>Créer une UE et l'associer à des Filières</h1>
+
+    <!-- Formulaire de création d'une nouvelle UE -->
+    <form id="createUEForm" method="POST">
+        <label for="ueName">Nom de l'UE:</label>
+        <input type="text" id="ueName" name="nom" required>
+        <button type="submit">Créer l'UE</button>
+    </form>
+
+    <hr>
+
+    <!-- Liste des UE créées -->
+    <h2>Liste des UE</h2>
+    <div id="ueList">
+        <!-- Les UE seront ajoutées ici dynamiquement -->
+    </div>
+
+    <hr>
+
+    <!-- Sélectionner l'UE, la Filière et l'Année -->
+    <h2>Assigner les UE à une Filière et une Année</h2>
+    <form id="assignUEForm" method="POST">
+        <label for="selectUE">Sélectionner les UE :</label>
+        <select id="selectUE" name="ue_id[]" multiple required>
+            <!-- Les options des UE existantes seront ajoutées ici -->
+        </select>
+
+        <label for="filiere">Sélectionner une Filière :</label>
+        <select id="filiere" name="id_filiere" required>
+            <!-- Options des Filières ici -->
+        </select>
+
+        <label for="annee">Sélectionner l'Année :</label>
+        <select id="annee" name="annee" required>
+            <option value="1">Licence 1</option>
+            <option value="2">Licence 2</option>
+            <option value="3">Licence 3</option>
+        </select>
+
+        <button type="submit">Associer</button>
+    </form>
+
+    <script>
+        // Pour afficher la liste des UE existantes
+        function loadUEList() {
+    fetch('/api/ues')  
+        .then(response => response.json())
+        .then(ues => {
+            const selectUE = document.getElementById('selectUE');
+            const ueListDiv = document.getElementById('ueList');
+            
+            selectUE.innerHTML = '';
+            ueListDiv.innerHTML = '';
+
+            ues.forEach(ue => {
+                // Créer une option pour le select
+                const option = document.createElement('option');
+                option.value = ue.id_ue;
+                option.textContent = ue.nom;
+                selectUE.appendChild(option);
+
+                // Créer un div avec un bouton de suppression
+                const ueDiv = document.createElement('div');
+                ueDiv.textContent = ue.nom;
+
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = "Supprimer";
+                deleteButton.onclick = function() {
+                    deleteUE(ue.id_ue);
+                };
+
+                ueDiv.appendChild(deleteButton);
+                ueListDiv.appendChild(ueDiv);
+            });
+        })
+        .catch(error => console.error('Erreur:', error));
+}
+
+function deleteUE(id_ue) {
+    if (confirm("Voulez-vous vraiment supprimer cette UE ?")) {
+        fetch(`/api/deleteUE/${id_ue}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(() => {
+            alert("UE supprimée avec succès !");
+            loadUEList();  // Recharger la liste des UE après suppression
+        })
+        .catch(error => console.error('Erreur:', error));
+    }
+}
+
+
+  // Fonction pour récupérer les données des filières depuis l'API
+  fetch('/api/filieres')
+        .then(response => response.json())
+        .then(filieres => {
+            const filiereSelect = document.getElementById('filiere');
+
+            // Remplir la liste déroulante avec les données récupérées
+            filieres.forEach(filiere => {
+                const option = document.createElement('option');
+                option.value = filiere.id_filiere;
+                option.textContent = filiere.nom;
+                filiereSelect.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Erreur lors de la récupération des filières:', error);
+        });
+
+
+        // Lors de la soumission du formulaire de création de l'UE
+        document.getElementById('createUEForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const ueName = document.getElementById('ueName').value;
+
+            fetch('/api/createUE', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nom: ueName })
+            })
+            .then(response => response.json())
+            .then(() => {
+                loadUEList();  // Recharger la liste des UE après la création
+            })
+            .catch(error => console.error('Erreur:', error));
+        });
+
+        // Lors de la soumission du formulaire pour associer une UE à une Filière et une Année
+        document.getElementById('assignUEForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const selectedUEs = Array.from(document.getElementById('selectUE').selectedOptions).map(option => option.value);
+            const idFiliere = document.getElementById('filiere').value;
+            const annee = document.getElementById('annee').value;
+
+            fetch('/api/assignUE', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ue_ids: selectedUEs, id_filiere: idFiliere, annee: annee })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('UE(s) associée(s) avec succès');
+            })
+            .catch(error => console.error('Erreur:', error));
+        });
+
+        // Charger les UE et les filières à chaque chargement de la page
+        window.onload = function() {
+            loadUEList();
+        }
+    </script>
+</body>
+</html>

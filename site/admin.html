@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tableau de bord Administrateur</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        header {
+            background-color: #333;
+            color: white;
+            padding: 15px;
+            text-align: center;
+        }
+        main {
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            justify-content: space-around;
+        }
+        .box {
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin: 10px;
+            width: 30%;
+            text-align: center;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+            margin-top: 20px;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Bienvenue sur le tableau de bord Administrateur</h1>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="box">
+                <h2>Gestion des utilisateurs</h2>
+                <p>Ajoutez, modifiez ou supprimez des comptes d'utilisateurs.</p>
+                <button onclick="location.href='/gestion-utilisateurs'">Gérer les utilisateurs</button>
+            </div>
+            <div class="box">
+                <h2>Gestion des matières</h2>
+                <p>Ajoutez, modifiez ou supprimez des matières.</p>
+                <button onclick="location.href='/gestion-ue'">Gérer les matières</button>
+            </div>
+            <div class="box">
+                <h2>Réclamations</h2>
+                <p>Consultez les réclamations des étudiants.</p>
+                <button onclick="location.href='/gestion-reclamations'">Voir les réclamations</button>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion du Professeur</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="/admin">Home</a></li>
+            <li><a href="/gestion-utilisateurs">Liste des Professeurs</a></li>
+            <li><a href="/acceuil">Déconnexion</a></li>
+        </ul>
+    </nav>
+    
+    <div class="container">
+        <h2>Gestion du Professeur</h2>
+        <div id="professeur-info"></div>
+        
+        <h3>Attribuer une UE</h3>
+        <form id="assignUEForm">
+            <select id="ueSelect" required></select>
+            <button type="submit">Attribuer</button>
+        </form>
+        
+        <h3>Assigner une UE à une Classe</h3>
+        <form id="assignUEClasseForm">
+            <select id="ueClasseSelect" required></select>
+            <select id="classeSelect" required></select>
+            <button type="submit">Assigner</button>
+        </form>
+        
+        <h3>Modifier les Informations</h3>
+        <form id="editProfForm">
+            <input type="text" id="nom" name="nom" placeholder="Nom" required>
+            <input type="email" id="email" name="email" placeholder="Email" required>
+            <button type="submit">Modifier</button>
+        </form>
+        
+        <button id="deleteProf">Supprimer le Professeur</button>
+    </div>
+    <div class="container">
+    <h2>Classe</h2>
+            <ul id="classList"></ul>
+        </div>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const profId = params.get('id');
+
+        if (!profId) {
+            alert("ID du professeur manquant.");
+            window.location.href = '/professeurs';
+        }
+
+        // Charger les infos du professeur
+        fetch(`/api/professeur/${profId}`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('professeur-info').innerHTML = `
+                    <p><strong>Nom:</strong> ${data.nom}</p>
+                    <p><strong>Email:</strong> ${data.email}</p>
+                `;
+                document.getElementById('nom').value = data.nom;
+                document.getElementById('email').value = data.email;
+            })
+            .catch(err => console.error('Erreur:', err));
+            
+              // Récupérer la liste des classes du prof
+  fetch(`/afficher_prof_classe/${profId}`)
+                .then(response => response.json())
+                .then(data => {
+                    const resultList = document.getElementById("classList");
+                    resultList.innerHTML = ""; // Nettoie la liste précédente
+
+                    if (data.message) {
+                        resultList.innerHTML = `<li>${data.message}</li>`;
+                        return;
+                    }
+
+                    data.forEach(item => {
+                        const li = document.createElement("li");
+                        li.innerHTML = `<strong>Classe :</strong> ${item.nom_classe} <br>
+                                        <strong>UE :</strong> ${item.nom_ue} <br>`;
+                        resultList.appendChild(li);
+                    });
+                })
+                .catch(error => {
+                    console.error("Erreur lors de la récupération des données :", error);
+                    alert("Erreur serveur !");
+                });
+        
+        // Charger les UEs disponibles
+        fetch('/api/ues')
+            .then(res => res.json())
+            .then(ues => {
+                const ueSelect = document.getElementById('ueSelect');
+                ues.forEach(ue => {
+                    const option = document.createElement('option');
+                    option.value = ue.id_ue;
+                    option.textContent = ue.nom;
+                    ueSelect.appendChild(option);
+                });
+            });
+        fetch(`/api/ues/prof/${profId}`)
+            .then(res => res.json())
+            .then(ues => {
+                const ueClasseSelect = document.getElementById('ueClasseSelect');
+                ues.forEach(ue => {
+                    const option = document.createElement('option');
+                    option.value = ue.id_ue;
+                    option.textContent = ue.nom;
+                    ueClasseSelect.appendChild(option.cloneNode(true));
+                });
+            });
+        
+        // Charger les classes disponibles
+        fetch('/api/classes')
+            .then(res => res.json())
+            .then(classes => {
+                const classeSelect = document.getElementById('classeSelect');
+                classes.forEach(classe => {
+                    const option = document.createElement('option');
+                    option.value = classe.id_classe;
+                    option.textContent = classe.nom;
+                    classeSelect.appendChild(option);
+                });
+            });
+        
+        // Attribution d'une UE
+        document.getElementById('assignUEForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            fetch(`/api/attribuer_ue/${profId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ profId, ueId: ueSelect.value })
+            });
+        });
+        
+        // Assigner une UE à une classe
+        document.getElementById('assignUEClasseForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            fetch(`/api/assigner_ue_classe/${profId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ profId, ueId: ueClasseSelect.value, classeId: classeSelect.value })
+            });
+        });
+        
+        // Modifier les informations du professeur
+        document.getElementById('editProfForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            fetch(`/api/modifier_prof/${profId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    nom: document.getElementById('nom').value,
+                    email: document.getElementById('email').value
+                })
+            });
+        });
+        
+        // Supprimer le professeur
+        document.getElementById('deleteProf').addEventListener('click', function() {
+            if (confirm("Voulez-vous vraiment supprimer ce professeur ?")) {
+                fetch(`/api/supprimer_prof/${profId}`, { method: 'DELETE' })
+                    .then(() => window.location.href = '/gestion-utilisateurs');
+            }
+        });
+    </script>
+</body>
+</html>
