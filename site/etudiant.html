@@ -3,162 +3,190 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tableau des Notes</title>
-    <link rel="stylesheet" href="styletab.css">
+    <title>Notes de l'étudiant</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 20px;
-            text-align: center;
         }
-        .container {
-            max-width: 90%;
-            margin: auto;
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
         }
-        .btn-container {
-            margin-top: 20px;
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
         }
-        .btn {
-            padding: 10px 20px;
-            font-size: 16px;
+        th {
+            background-color: #f2f2f2;
+        }
+        .ue-table {
+            margin-bottom: 30px;
+        }
+        .ue-title {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+        .average {
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .reclamation-button {
+            color: blue;
             cursor: pointer;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            text-decoration: none;
-            display: inline-block; /* Toujours affiché */
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>Tableau des Notes</h2>
-        <table id="notesTable">
-            <thead>
-                <tr id="headerRow">
-                    <th>Ue</th>
-                    <th id="notesHeader">Note 1</th>
-                    <th>Moyenne</th>
-                </tr>
-            </thead>
-            <tbody id="studentsTable">
-            </tbody>
-        </table>
-        
-    </div>
+    <h1>Notes de l'étudiant</h1>
+
+    <div id="studentName"></div>
+    <div id="message"></div>
+    <div id="tablesContainer"></div>
 
     <script>
-        const urlParams = new URLSearchParams(window.location.search);
-            const idClasse = urlParams.get("classe");
-            const idue = urlParams.get("ue");
-        document.addEventListener("DOMContentLoaded", function () {
-            const studentsTable = document.getElementById("studentsTable");
-            const headerRow = document.getElementById("headerRow");
-            const notesTable = document.getElementById("notesTable");
-            const notesHeader = document.getElementById("notesHeader");
-            const addNoteBtn = document.getElementById("addNoteBtn");
-            if (idClasse && idue) {
-        addNoteBtn.href = `/note?classe=${idClasse}&ue=${idue}`;
-    }
+        // Fonction pour récupérer l'ID de l'étudiant depuis l'URL
+        function getStudentIdFromUrl() {
+            const pathArray = window.location.pathname.split('/');
+            return pathArray[pathArray.length - 1]; // Dernier élément de l'URL
+        }
 
-            
+        // Fonction pour récupérer les notes de l'étudiant
+        function fetchNotes() {
+            const studentId = getStudentIdFromUrl(); // Récupérer l'ID de l'étudiant
 
-            if (!idClasse || !idue) {
-                console.error("Paramètres manquants dans l'URL");
-                return;
-            }
+            fetch(`/api/notes/${studentId}`)
+                .then(response => response.json())
+                .then(data => {
+                    const tablesContainer = document.getElementById('tablesContainer');
+                    const studentNameElement = document.getElementById('studentName');
+                    tablesContainer.innerHTML = ''; // Réinitialiser les tables
 
-            function fetchNotes() {
-                const studentsUrl = `http://localhost:3000/etudiants/${idClasse}`;
-                const notesUrl = `http://localhost:3000/notes/${idClasse}/${idue}`;
+                    if (data.length === 0) {
+                        document.getElementById('message').innerHTML = "<p>Aucune note trouvée pour cet étudiant.</p>";
+                    } else {
+                        document.getElementById('message').innerHTML = '';
 
-                Promise.all([fetch(studentsUrl), fetch(notesUrl)])
-                    .then(responses => {
-                        if (!responses[0].ok || !responses[1].ok) {
-                            throw new Error("Erreur lors de la récupération des données");
+                        // Affichage du nom de l'étudiant
+                        studentNameElement.textContent = `Nom de l'étudiant : ${data[0].nom_etudiant}`;
+
+                        // Grouper les notes par UE
+                        const groupedByUE = data.reduce((acc, note) => {
+                            if (!acc[note.nom_ue]) {
+                                acc[note.nom_ue] = [];
+                            }
+                            acc[note.nom_ue].push(note);
+                            return acc;
+                        }, {});
+
+                        // Créer un tableau pour chaque UE
+                        for (const [ueName, notes] of Object.entries(groupedByUE)) {
+                            const ueTableDiv = document.createElement('div');
+                            ueTableDiv.classList.add('ue-table');
+                            
+                            // Titre de l'UE
+                            const ueTitle = document.createElement('div');
+                            ueTitle.classList.add('ue-title');
+                            ueTitle.textContent = `Unité d'Enseignement : ${ueName}`;
+                            ueTableDiv.appendChild(ueTitle);
+
+                            // Trier les notes par ordre croissant de "ordre"
+                            notes.sort((a, b) => a.ordre - b.ordre);
+
+                            // Calcul de la moyenne
+                            let totalPoints = 0;
+                            let totalCoefficients = 0;
+
+                            notes.forEach(note => {
+                                totalPoints += note.valeur * note.coefficient;
+                                totalCoefficients += note.coefficient;
+                            });
+
+                            const average = totalCoefficients > 0 ? totalPoints / totalCoefficients : 0;
+
+                            // Créer le tableau
+                            const table = document.createElement('table');
+                            const tableHeader = document.createElement('thead');
+                            tableHeader.innerHTML = `
+                                <tr>
+                                    <th>Ordre</th>
+                                    <th>Valeur</th>
+                                    <th>Coefficient</th>
+                                    <th>Réclamation</th>
+                                </tr>
+                            `;
+                            table.appendChild(tableHeader);
+
+                            const tableBody = document.createElement('tbody');
+                            notes.forEach(note => {
+                                const row = document.createElement('tr');
+                                row.dataset.idNote = note.id_note; // Stocke l'ID de la note dans un attribut data-id
+
+                                row.innerHTML = `
+                                    <td>${note.ordre}</td>
+                                    <td>${note.valeur}</td>
+                                    <td>${note.coefficient}</td>
+                                    <td><button class="reclamation-button" onclick="submitReclamation(this)">Réclamer</button></td>
+                                `;
+                                tableBody.appendChild(row);
+                            });
+                            table.appendChild(tableBody);
+
+                            // Affichage de la moyenne
+                            const averageDiv = document.createElement('div');
+                            averageDiv.classList.add('average');
+                            averageDiv.textContent = `Moyenne de l'UE : ${average.toFixed(2)}`;
+
+                            // Ajouter la table et la moyenne à la page
+                            ueTableDiv.appendChild(table);
+                            ueTableDiv.appendChild(averageDiv);
+                            tablesContainer.appendChild(ueTableDiv);
                         }
-                        return Promise.all(responses.map(response => response.json()));
-                    })
-                    .then(([students, notes]) => {
-                        displayNotes(students, notes);
-                    })
-                    .catch(error => {
-                        console.error("Erreur :", error);
-                    });
-            }
-
-            function displayNotes(students, notes) {
-                if (notes.length === 0) {
-                    notesTable.style.display = "none";
-                    return;
-                }
-
-                notesTable.style.display = "table";
-
-                let maxOrder = 1;
-                let studentNotes = {};
-
-                students.forEach(student => {
-                    studentNotes[student.id_etudiant] = {
-                        nom: student.nom,
-                        notes: {},
-                        moyenne: 0
-                    };
-                });
-
-                notes.forEach(note => {
-                    if (!studentNotes[note.id_etudiant]) return;
-                    studentNotes[note.id_etudiant].notes[note.ordre] = {
-                        valeur: parseFloat(note.valeur),
-                        coefficient: parseFloat(note.coefficient)
-                    };
-                    maxOrder = Math.max(maxOrder, note.ordre);
-                });
-
-                // Suppression des anciennes colonnes ajoutées dynamiquement
-                while (headerRow.children.length > 3) {
-                    headerRow.removeChild(headerRow.lastChild);
-                }
-
-                for (let i = maxOrder; i >= 2; i--) {
-                    let th = document.createElement("th");
-                    th.textContent = `Note ${i}`;
-                    headerRow.insertBefore(th, notesHeader.nextSibling);
-                }
-
-                studentsTable.innerHTML = "";
-                for (let id in studentNotes) {
-                    let student = studentNotes[id];
-                    let row = document.createElement("tr");
-                    let totalPoints = 0, totalCoef = 0;
-
-                    let nameCell = document.createElement("td");
-                    nameCell.textContent = student.nom;
-                    row.appendChild(nameCell);
-
-                    for (let i = 1; i <= maxOrder; i++) {
-                        let cell = document.createElement("td");
-                        if (student.notes[i]) {
-                            cell.textContent = `${student.notes[i].valeur} (${student.notes[i].coefficient})`;
-                            totalPoints += student.notes[i].valeur * student.notes[i].coefficient;
-                            totalCoef += student.notes[i].coefficient;
-                        } else {
-                            cell.textContent = "-";
-                        }
-                        row.appendChild(cell);
                     }
+                })
+                .catch(error => {
+                    console.error("Erreur:", error);
+                    document.getElementById('message').innerHTML = "<p>Erreur lors de la récupération des notes.</p>";
+                });
+        }
 
-                    let moyenneCell = document.createElement("td");
-                    moyenneCell.textContent = totalCoef > 0 ? (totalPoints / totalCoef).toFixed(2) : "N/A";
-                    row.appendChild(moyenneCell);
+        // Fonction pour traiter une réclamation
+        function submitReclamation(buttonElement) {
+    const noteId = buttonElement.closest('tr').dataset.idNote;
+    const idEtudiant = getStudentIdFromUrl(); // ID depuis l'URL
 
-                    studentsTable.appendChild(row);
-                }
-            }
+    const message = prompt("Entrez l'objet de votre réclamation (max 300 caractères) :");
 
-            fetchNotes();
+    if (message && message.length <= 300) {
+        fetch('/api/reclamation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                id_note: noteId,
+                id_etudiant: idEtudiant,
+                message: message
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message || "Réclamation déja soumise ou trop de réclamation attentes !");
+            fetchNotes(); // Recharger les notes
+        })
+        .catch(error => {
+            console.error("Erreur:", error);
+            alert("Erreur lors de l'envoi de la réclamation.");
         });
+    } else {
+        alert("Le message est vide ou dépasse 300 caractères.");
+    }
+}
+
+
+        // Appeler la fonction de récupération des notes dès le chargement de la page
+        fetchNotes();
     </script>
 </body>
 </html>

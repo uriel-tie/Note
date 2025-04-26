@@ -97,6 +97,95 @@
         } else {
             console.error('ID du professeur non trouvé dans l\'URL');
         }
+
+        function verifierNouvellesReclamations() {
+    fetch(`/api/reclamations/${idProfesseur}`)
+        .then(response => response.json())
+        .then(data => {
+            const reclamationsEnAttente = data.filter(r => r.statut === 'en attente');
+            if (reclamationsEnAttente.length > 0) {
+                alert(`Vous avez ${reclamationsEnAttente.length} nouvelle(s) réclamation(s) à traiter.`);
+            }
+        })
+        .catch(error => {
+            console.error("Erreur lors de la vérification des réclamations :", error);
+        });
+}
+
+// Appeler au chargement
+verifierNouvellesReclamations();
+
+
+        // Fonction pour charger les réclamations
+function chargerReclamations() {
+    fetch(`/api/reclamations/${idProfesseur}`)
+        .then(response => response.json())
+        .then(data => {
+            const reclamationList = document.getElementById('reclamation-list');
+            reclamationList.innerHTML = '';
+
+            if (data.length === 0) {
+                reclamationList.innerHTML = "<p>Aucune réclamation trouvée.</p>";
+                return;
+            }
+
+            data.forEach(reclamation => {
+                const div = document.createElement('div');
+                div.className = 'list-item';
+
+                        div.innerHTML = `
+            <strong>Étudiant :</strong> ${reclamation.nom_etudiant} (${reclamation.nom_classe})<br>
+            <strong>UE :</strong> ${reclamation.nom_ue}<br>
+            <strong>Note :</strong> ${reclamation.valeur_note}<br>
+            <strong>Message :</strong> ${reclamation.message}<br>
+            <strong>Statut :</strong> ${reclamation.statut}<br>
+            <strong>Date :</strong> ${new Date(reclamation.date_creation).toLocaleDateString()}<br>
+        `;
+
+
+                if (reclamation.statut === 'en attente') {
+                    const validerButton = document.createElement('button');
+                    validerButton.textContent = "Valider";
+                    validerButton.addEventListener('click', () => gererReclamation(reclamation.id_reclamation, 'valider'));
+
+                    const refuserButton = document.createElement('button');
+                    refuserButton.textContent = "Refuser";
+                    refuserButton.addEventListener('click', () => gererReclamation(reclamation.id_reclamation, 'refuser'));
+
+                    div.appendChild(validerButton);
+                    div.appendChild(refuserButton);
+                }
+
+                reclamationList.appendChild(div);
+            });
+        })
+        .catch(error => {
+            console.error("Erreur:", error);
+        });
+}
+
+// Fonction pour valider ou refuser une réclamation
+function gererReclamation(idReclamation, action) {
+    const confirmation = confirm(`Êtes-vous sûr de vouloir ${action} cette réclamation ?`);
+    if (!confirmation) {
+        return; // L'utilisateur a annulé
+    }
+
+    fetch(`/api/reclamation/${action}/${idReclamation}`, { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message);
+            chargerReclamations(); // Recharge la liste des réclamations
+        })
+        .catch(error => {
+            console.error("Erreur:", error);
+        });
+}
+
+
+// Charger les réclamations dès que la page est prête
+chargerReclamations();
+
 </script>
 </body>
 </html>

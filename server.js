@@ -628,6 +628,28 @@ app.get("/etudiants/:id_classe", async (req, res) => {
     }
 });
 
+app.put('/api/modifier_note', async (req, res) => {
+    const { id_etudiant, id_ue, ordre, nouvelle_valeur, coefficient } = req.body;
+
+    try {
+        const result = await pool.query(`
+            UPDATE note
+            SET valeur = $1
+            WHERE id_etudiant = $2 AND id_ue = $3 AND ordre = $4 AND coefficient = $5
+        `, [nouvelle_valeur, id_etudiant, id_ue, ordre, coefficient]);
+
+        if (result.rowCount > 0) {
+            res.json({ message: "Note modifiée avec succès." });
+        } else {
+            res.status(404).json({ message: "Note non trouvée." });
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Erreur serveur." });
+    }
+});
+
+
 app.post('/log-etud', (req, res) => {
     const { matricule, password } = req.body;
 
@@ -652,10 +674,152 @@ app.get('/etudiant/:id', (req, res) => {
     res.sendFile(path.join(__dirname, 'Site', 'etudiant.html'));
 });
 
+// Route pour récupérer les notes d'un étudiant
+app.get('/api/notes/:id', async (req, res) => {
+    const studentId = req.params.id;
+    try {
+        const result = await pool.query(
+            `SELECT
+                etudiant.nom AS nom_etudiant,
+                ue.nom AS nom_ue,
+                note.id_note,
+                note.valeur,
+                note.coefficient,
+                note.ordre
+            FROM note
+            JOIN ue ON note.id_ue = ue.id_ue
+            JOIN etudiant ON note.id_etudiant = etudiant.id_etudiant
+            WHERE note.id_etudiant = $1`,
+            [studentId]
+        );
+
+        // Si des données sont trouvées, renvoyer les résultats
+        if (result.rows.length > 0) {
+            res.json(result.rows);
+        } else {
+            res.status(404).json({ message: "Aucune note trouvée pour cet étudiant." });
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Erreur lors de la récupération des données." });
+    }
+});
+
+app.post('/api/reclamation', async (req, res) => {
+    const { id_note, id_etudiant, message } = req.body;
+
+    if (!id_note || !id_etudiant || !message || message.length > 300) {
+        return res.status(400).json({ error: 'Données invalides' });
+    }
+
+    try {
+        // Vérifier si l'étudiant a déjà 3 réclamations en attente
+        const countResult = await pool.query(
+            `SELECT COUNT(*) FROM reclamation WHERE id_etudiant = $1 AND statut = 'en attente'`,
+            [id_etudiant]
+        );
+
+        if (parseInt(countResult.rows[0].count) >= 3) {
+            return res.status(400).json({ error: "Vous avez atteint la limite de 3 réclamations en attente." });
+        }
+
+        // Vérifier s'il y a déjà une réclamation en attente sur cette note
+        const noteResult = await pool.query(
+            `SELECT 1 FROM reclamation WHERE id_note = $1 AND statut = 'en attente'`,
+            [id_note]
+        );
+
+        if (noteResult.rowCount > 0) {
+            return res.status(400).json({ error: "Il y a déjà une réclamation en attente pour cette note." });
+        }
+
+        // Ajouter la réclamation
+        await pool.query(
+            `INSERT INTO reclamation (id_note, id_etudiant, message) VALUES ($1, $2, $3)`,
+            [id_note, id_etudiant, message]
+        );
+
+        res.status(201).json({ message: "Réclamation créée avec succès" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Erreur serveur" });
+    }
+});
+async function verifierReclamationsExpirees() {
+    try {
+        await pool.query(`
+            UPDATE reclamation
+            SET statut = 'refuser'
+            WHERE statut = 'en attente' AND date_creation <= NOW() - INTERVAL '3 days'
+        `);
+    } catch (error) {
+        console.error("Erreur lors de la mise à jour des réclamations expirées :", error);
+    }
+}
+
+// Afficher les réclamations associées au professeur
+app.get('/api/reclamations/:id_professeur', async (req, res) => {
+    const idProfesseur = parseInt(req.params.id_professeur);
+
+    try {
+        await verifierReclamationsExpirees(); // Vérifie les expirations avant
+
+        const result = await pool.query(`
+            SELECT 
+                r.id_reclamation,
+                r.id_note,
+                r.message,
+                r.statut,
+                r.date_creation,
+                e.nom AS nom_etudiant,
+                c.nom AS nom_classe,
+                n.valeur AS valeur_note,
+                ue.nom AS nom_ue
+            FROM reclamation r
+            JOIN note n ON r.id_note = n.id_note
+            JOIN etudiant e ON r.id_etudiant = e.id_etudiant
+            JOIN classe c ON e.id_classe = c.id_classe
+            JOIN ue ON n.id_ue = ue.id_ue
+            JOIN prof_classe_ue pcu ON n.id_ue = pcu.id_ue AND c.id_classe = pcu.id_classe
+            WHERE pcu.id_professeur = $1
+            ORDER BY r.date_creation DESC
+        `, [idProfesseur]);
+
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Erreur serveur' });
+    }
+});
+
+// Valider une réclamation
+app.post('/api/reclamation/valider/:id', async (req, res) => {
+    const idReclamation = parseInt(req.params.id);
+
+    try {
+        await pool.query(`UPDATE reclamation SET statut = 'valider' WHERE id_reclamation = $1`, [idReclamation]);
+        res.json({ message: 'Réclamation validée' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Erreur serveur' });
+    }
+});
+
+// Refuser une réclamation
+app.post('/api/reclamation/refuser/:id', async (req, res) => {
+    const idReclamation = parseInt(req.params.id);
+
+    try {
+        await pool.query(`UPDATE reclamation SET statut = 'refuser' WHERE id_reclamation = $1`, [idReclamation]);
+        res.json({ message: 'Réclamation refusée' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Erreur serveur' });
+    }
+});
 
 
-
-
+ 
 // Vérifier la connexion à la base de données
 pool.connect()
     .then(client => {

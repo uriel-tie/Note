@@ -142,12 +142,30 @@
                     for (let i = 1; i <= maxOrder; i++) {
                         let cell = document.createElement("td");
                         if (student.notes[i]) {
-                            cell.textContent = `${student.notes[i].valeur} (${student.notes[i].coefficient})`;
-                            totalPoints += student.notes[i].valeur * student.notes[i].coefficient;
-                            totalCoef += student.notes[i].coefficient;
-                        } else {
-                            cell.textContent = "-";
-                        }
+    const noteValue = student.notes[i].valeur;
+    const coefficient = student.notes[i].coefficient;
+    cell.textContent = `${noteValue} (${coefficient})`;
+
+    // Rendre la cellule cliquable
+    cell.style.cursor = "pointer";
+    cell.addEventListener("click", () => {
+        const newValue = prompt(`Modifier la note (actuelle: ${noteValue}):`, noteValue);
+        if (newValue !== null) {
+            const parsedValue = parseFloat(newValue);
+            if (!isNaN(parsedValue)) {
+                modifierNote(id, idue, i, parsedValue, coefficient); // id = id_etudiant
+            } else {
+                alert("Veuillez entrer une valeur numérique valide.");
+            }
+        }
+    });
+
+    totalPoints += noteValue * coefficient;
+    totalCoef += coefficient;
+} else {
+    cell.textContent = "-";
+}
+
                         row.appendChild(cell);
                     }
 
@@ -161,6 +179,33 @@
 
             fetchNotes();
         });
+        function modifierNote(idEtudiant, idUe, ordre, nouvelleValeur, coefficient) {
+    fetch('/api/modifier_note', {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            id_etudiant: idEtudiant,
+            id_ue: idUe,
+            ordre: ordre,
+            nouvelle_valeur: nouvelleValeur,
+            coefficient: coefficient
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(data.message);
+
+        // 🔵 Forcer un rechargement complet des notes après modification
+        setTimeout(fetchNotes, 300); // Un petit délai pour laisser PostgreSQL enregistrer
+    })
+    .catch(error => {
+        console.error("Erreur lors de la modification :", error);
+    });
+}
+
+
     </script>
 </body>
 </html>
