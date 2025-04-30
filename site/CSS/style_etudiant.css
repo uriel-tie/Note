@@ -1,0 +1,124 @@
+/* Style général de la page */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f6f8;
+    margin: 0;
+    padding: 20px;
+}
+
+/* Titre principal */
+h1 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 30px;
+}
+
+/* Informations de l'étudiant */
+#studentName {
+    font-size: 20px;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+/* Message d'erreur ou d'information */
+#message {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #d32f2f;
+    font-weight: bold;
+}
+
+/* Conteneur des tableaux */
+#tablesContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+/* Bloc pour chaque UE */
+.ue-table {
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Titre de l'UE */
+.ue-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #4CAF50;
+    margin-bottom: 10px;
+}
+
+/* Tableau des notes */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+/* Bordures pour toutes les cellules */
+th, td {
+    border: 1px solid #ddd;
+    padding: 12px 15px;
+    text-align: center;
+}
+
+/* En-tête du tableau */
+thead {
+    background-color: #4CAF50;
+    color: white;
+}
+
+thead th {
+    font-weight: bold;
+}
+
+/* Corps du tableau */
+tbody tr {
+    background-color: #fafafa;
+}
+
+tbody tr:hover {
+    background-color: #f1f1f1;
+}
+
+/* Moyenne */
+.average {
+    margin-top: 15px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #333;
+    text-align: right;
+}
+
+/* Bouton Réclamer */
+.reclamation-button {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.reclamation-button:hover {
+    background-color: #45a049;
+}
+
+/* Responsive pour petits écrans */
+@media (max-width: 768px) {
+    .ue-table {
+        padding: 15px;
+    }
+    table, thead, tbody, th, td, tr {
+        display: block;
+    }
+    th {
+        text-align: left;
+    }
+}

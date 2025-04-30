@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saisie des Notes</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+        th, td {
+            padding: 10px;
+            text-align: center;
+        }
+        input {
+            width: 60px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Saisie des Notes</h2>
+        <label for="noteOrder">Numéro de la note :</label>
+        <input type="number" id="noteOrder" min="1" max="10" value="1">
+
+        <label for="coefficient">Coefficient :</label>
+        <input type="number" id="coefficient" min="1" max="10" value="1">
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Étudiant</th>
+                    <th>Note</th>
+                </tr>
+            </thead>
+            <tbody id="studentsTable">
+            </tbody>
+        </table>
+
+        <button onclick="validerNotes()">Valider</button>
+    </div>
+
+    <script>
+
+document.addEventListener("DOMContentLoaded", async function () {
+    const studentsTable = document.getElementById("studentsTable"); // Assurez-vous d'avoir cet élément dans le HTML
+
+                async function fetchStudents() {
+                try {
+                    const response = await fetch("http://localhost:3000/etudiants");
+                    if (!response.ok) {
+                        throw new Error(`Erreur HTTP : ${response.status}`);
+                    }
+                    const students = await response.json();
+
+                    studentsTable.innerHTML = ""; // Nettoyer le tableau avant d'ajouter les lignes
+
+                    students.forEach(student => {
+                        let row = document.createElement("tr");
+                        row.innerHTML = `
+                            <td>${student.nom}</td>
+                            <td><input type="number" min="0" max="20" step="0.1" class="noteInput" data-id="${student.id_etudiant}"></td>
+                        `;
+                        studentsTable.appendChild(row);
+                    });
+                } catch (error) {
+                    console.error("Erreur lors de la récupération des étudiants :", error);
+                }
+            }
+
+            fetchStudents();
+
+});
+
+
+function validerNotes() {
+    let notes = [];
+    let erreur = false;
+
+    document.querySelectorAll(".noteInput").forEach(input => {
+        const id_etudiant = input.getAttribute("data-id"); // Récupère l'id de l'étudiant
+        const noteValue = input.value.trim();
+
+        // Vérifier si la note est valide
+        if (noteValue === "" || isNaN(noteValue) || noteValue < 0 || noteValue > 20) {
+            erreur = true;
+            input.style.border = "2px solid red"; // Met en surbrillance les champs invalides
+        } else {
+            input.style.border = ""; // Réinitialise le style en cas de correction
+            notes.push({ id_etudiant, noteValue: parseFloat(noteValue) });
+        }
+    });
+
+    if (erreur) {
+        alert("Veuillez saisir des notes valides (entre 0 et 20) avant de valider.");
+        return;
+    }
+
+    // Données à envoyer
+    const data = {
+        numeroNote: document.getElementById("noteOrder").value,
+        coefficient: document.getElementById("coefficient").value,
+        notes: notes
+    };
+
+    // Envoi des données au serveur
+    fetch("http://localhost:3000/notes", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data) // Envoie les données en format JSON
+    })
+    .then(response => response.json())
+    .then(result => {
+        console.log(result);
+        alert("Notes validées avec succès !");
+    })
+    .catch(error => {
+        console.error("Erreur lors de l'ajout des notes", error);
+        alert("Erreur lors de l'ajout des notes.");
+    });
+}
+
+
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+/* Style général pour tous les tableaux */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 16px;
+    background-color: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Chaque cellule avec une bordure */
+th, td {
+    border: 1px solid #ddd; /* Bordure autour de chaque cellule */
+    padding: 12px 15px;
+    text-align: left;
+}
+
+/* En-tête du tableau */
+thead {
+    background-color: #4CAF50;
+    color: white;
+}
+
+thead th {
+    background-color: #4CAF50;
+    color: white;
+    font-weight: bold;
+}
+
+/* Corps du tableau */
+tbody tr {
+    background-color: #fafafa;
+}
+
+tbody tr:hover {
+    background-color: #f1f1f1;
+}
+
+/* Tableaux responsifs */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+/* Centrer le texte si besoin */
+.text-center {
+    text-align: center;
+}
+
+/* Boutons à l'intérieur d'un tableau */
+table button {
+    padding: 6px 12px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+
+table button:hover {
+    background-color: #45a049;
+}
+
+/* Style bouton secondaire (ex: Refuser, Supprimer) */
+table .btn-danger {
+    background-color: #f44336;
+}
+
+table .btn-danger:hover {
+    background-color: #d32f2f;
+}

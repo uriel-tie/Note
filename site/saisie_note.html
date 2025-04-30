@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Saisie des Notes</title>
-    <link rel="stylesheet" href="styletab.css">
+    <link rel="stylesheet" href="CSS/style_tab.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -16,6 +17,20 @@
         }
         input {
             width: 60px;
+        }
+        .btn-container {
+            margin-top: 20px;
+        }
+        .btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            text-decoration: none;
+            display: inline-block; 
         }
     </style>
 </head>
@@ -39,26 +54,30 @@
             </tbody>
         </table>
 
-        <button onclick="validerNotes()">Valider</button>
+        <div class="btn-container">
+         <button class="btn" onclick="validerNotes()">Valider</button>
+        </div>
+        
     </div>
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
-            const idClasse = urlParams.get("classe");
-            const idue = urlParams.get("ue");
-document.addEventListener("DOMContentLoaded", async function () {
-    const studentsTable = document.getElementById("studentsTable"); // Assurez-vous d'avoir cet élément dans le HTML
-
-                async function fetchStudents() {
+        const idClasse = urlParams.get("classe");
+        const idue = urlParams.get("ue");
+    
+        document.addEventListener("DOMContentLoaded", async function () {
+            const studentsTable = document.getElementById("studentsTable");
+    
+            async function fetchStudents() {
                 try {
                     const response = await fetch(`http://localhost:3000/etudiants/${idClasse}`);
                     if (!response.ok) {
                         throw new Error(`Erreur HTTP : ${response.status}`);
                     }
                     const students = await response.json();
-
+    
                     studentsTable.innerHTML = ""; // Nettoyer le tableau avant d'ajouter les lignes
-
+    
                     students.forEach(student => {
                         let row = document.createElement("tr");
                         row.innerHTML = `
@@ -71,63 +90,78 @@ document.addEventListener("DOMContentLoaded", async function () {
                     console.error("Erreur lors de la récupération des étudiants :", error);
                 }
             }
-
+    
             fetchStudents();
-
-});
-
-
-function validerNotes() {
-    let notes = [];
-    let erreur = false;
-
-    document.querySelectorAll(".noteInput").forEach(input => {
-        const id_etudiant = input.getAttribute("data-id"); // Récupère l'id de l'étudiant
-        const noteValue = input.value.trim();
-
-        // Vérifier si la note est valide
-        if (noteValue === "" || isNaN(noteValue) || noteValue < 0 || noteValue > 20) {
-            erreur = true;
-            input.style.border = "2px solid red"; // Met en surbrillance les champs invalides
-        } else {
-            input.style.border = ""; // Réinitialise le style en cas de correction
-            notes.push({ id_etudiant, noteValue: parseFloat(noteValue) });
+        });
+    
+        function validerNotes() {
+            let notes = [];
+            let erreur = false;
+    
+            document.querySelectorAll(".noteInput").forEach(input => {
+                const id_etudiant = input.getAttribute("data-id");
+                const noteValue = input.value.trim();
+    
+                if (noteValue === "" || isNaN(noteValue) || noteValue < 0 || noteValue > 20) {
+                    erreur = true;
+                    input.style.border = "2px solid red";
+                } else {
+                    input.style.border = "";
+                    notes.push({ id_etudiant, noteValue: parseFloat(noteValue) });
+                }
+            });
+    
+            if (erreur) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erreur',
+                    text: 'Veuillez saisir des notes valides (entre 0 et 20) avant de valider.',
+                    confirmButtonColor: '#d33'
+                });
+                return;
+            }
+    
+            const data = {
+                numeroNote: document.getElementById("noteOrder").value,
+                coefficient: document.getElementById("coefficient").value,
+                notes: notes
+            };
+    
+            fetch(`http://localhost:3000/notes/${idClasse}/${idue}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(data)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Erreur',
+                            text: data.error,
+                            confirmButtonColor: '#d33'
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Succès',
+                            text: 'Notes ajoutées avec succès !',
+                            confirmButtonColor: '#3085d6'
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Erreur',
+                        text: 'Une erreur s\'est produite lors de l\'envoi des notes.',
+                        confirmButtonColor: '#d33'
+                    });
+                });
         }
-    });
-
-    if (erreur) {
-        alert("Veuillez saisir des notes valides (entre 0 et 20) avant de valider.");
-        return;
-    }
-
-    // Données à envoyer
-    const data = {
-        numeroNote: document.getElementById("noteOrder").value,
-        coefficient: document.getElementById("coefficient").value,
-        notes: notes
-    };
-
-    // Envoi des données au serveur
-    fetch(`http://localhost:3000/notes/${idClasse}/${idue}`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify(data) // Envoie les données en format JSON
-    })
-        .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            alert(data.error); // 🔔 Affiche une alerte si l'ordre de note existe déjà
-        } else {
-            alert('Notes ajoutées avec succès !'); // ✅ Succès
-        }
-    })
-    .catch(error => console.error('Erreur:', error));
-}
-
-
-
     </script>
 </body>
 </html>
