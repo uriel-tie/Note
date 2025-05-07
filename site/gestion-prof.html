@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestion du Professeur</title>
     <link rel="stylesheet" href="CSS/style_prof.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script> 
 </head>
 <body>
     <nav>
@@ -162,10 +163,27 @@
         });
         
         // Supprimer le professeur
-        document.getElementById('deleteProf').addEventListener('click', function() {
-            if (confirm("Voulez-vous vraiment supprimer ce professeur ?")) {
-                fetch(`/api/supprimer_prof/${profId}`, { method: 'DELETE' })
-                    .then(() => window.location.href = '/gestion-utilisateurs');
+         document.getElementById('deleteProf').addEventListener('click', async () => {
+            const result = await Swal.fire({
+                title: 'Êtes-vous sûr ?',
+                text: "Cette action est irréversible !",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Oui, supprimer',
+                cancelButtonText: 'Annuler'
+            });
+
+            if (result.isConfirmed) {
+                try {
+                    const res = fetch(`/api/supprimer_prof/${profId}`, { method: 'DELETE' });
+                    const data = await res.json();
+                    Swal.fire('Supprimé', data.message, 'success').then(() => {
+                        window.location.href = '/gestion-utilisateurs';
+                    });
+                } catch (err) {
+                    console.error('Erreur suppression:', err);
+                    Swal.fire('Erreur', "Échec de la suppression", 'error');
+                }
             }
         });
     </script>

@@ -33,6 +33,38 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // Pour les formulaires
 app.use(express.static(path.join(__dirname, 'Site')));
 
+function authMiddleware(req, res, next) {
+    const publicRoutes = [
+        '/acceuil',
+        '/login_admin',
+        '/log-ad',
+        '/log-prof',
+        '/log-etud'
+    ];
+
+    // Autoriser l'accès si la route est publique
+    if (publicRoutes.includes(req.path)) {
+        return next();
+    }
+
+    // Admin connecté
+    if (req.session && req.session.isAdmin) return next();
+
+    // Professeur connecté
+    if (req.session && req.session.id_prof) return next();
+
+    // Étudiant connecté (ex : accès à /etudiant/:id)
+    if (req.path.startsWith('/etudiant') || req.path.startsWith('/api/notes/') || req.path.startsWith('/api/reclamation')) {
+        return next(); 
+    }
+
+    // Sinon, refuser l’accès
+    return res.status(401).send('Accès non autorisé veuillez vous connectez');
+}
+
+app.use(authMiddleware);
+
+
 // Route pour afficher le formulaire de connexion
 app.get('/acceuil', (req, res) => {
     res.sendFile(path.join(__dirname, 'Site', 'Acceuil.html'));
@@ -99,11 +131,12 @@ app.get('/api/filieres', (req, res) => {
 
 app.get('/afficher_Etud', async (req, res) => {
     try {
-      const result = await pool.query(`
-        SELECT etudiant.nom AS etudiant_nom, etudiant.mot_de_passe, classe.nom AS classe_nom
-        FROM etudiant
-        JOIN classe ON etudiant.id_classe = classe.id_classe
-      `);
+        const result = await pool.query(`
+            SELECT etudiant.id_etudiant, etudiant.nom AS etudiant_nom, etudiant.mot_de_passe, classe.nom AS classe_nom
+            FROM etudiant
+            JOIN classe ON etudiant.id_classe = classe.id_classe
+        `);
+        
       const etudiants = result.rows;
       res.json(etudiants);
     } catch (err) {
@@ -439,6 +472,89 @@ app.delete('/api/supprimer_prof/:id', async (req, res) => {
         res.status(500).json({ message: 'Erreur serveur' });
     }
 });
+
+app.get('/api/etudiant/:id', async (req, res) => {
+    const idEtud = parseInt(req.params.id, 10);
+    try {
+        const result = await pool.query(
+            `SELECT id_etudiant, nom, mot_de_passe FROM etudiant WHERE id_etudiant = $1`, [idEtud]
+        );
+
+        if (result.rows.length > 0) {
+            res.json(result.rows[0]);
+        } else {
+            res.status(404).json({ message: "Étudiant non trouvé" });
+        }
+    } catch (err) {
+        console.error('Erreur lors de la récupération de l\'étudiant:', err);
+        res.status(500).json({ message: "Erreur serveur" });
+    }
+});
+
+app.put('/api/etudiant/:id', async (req, res) => {
+    const idEtud = parseInt(req.params.id, 10);
+    const { nom, mot_de_passe } = req.body;
+
+    try {
+        const result = await pool.query(
+            `UPDATE etudiant SET nom = $1, mot_de_passe = $2 WHERE id_etudiant = $3`,
+            [nom, mot_de_passe, idEtud]
+        );
+
+        if (result.rowCount > 0) {
+            res.status(200).json({ message: "Étudiant mis à jour avec succès" });
+        } else {
+            res.status(404).json({ message: "Étudiant non trouvé" });
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Erreur serveur" });
+    }
+});
+ 
+app.put('/api/etudiant/:id/classe', async (req, res) => {
+    const idEtud = parseInt(req.params.id, 10);
+    const { id_classe } = req.body;
+
+    try {
+        const result = await pool.query(
+            `UPDATE etudiant SET id_classe = $1 WHERE id_etudiant = $2`,
+            [id_classe, idEtud]
+        );
+
+        if (result.rowCount > 0) {
+            res.status(200).json({ message: "Classe mise à jour" });
+        } else {
+            res.status(404).json({ message: "Étudiant non trouvé" });
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Erreur serveur" });
+    }
+});
+
+app.delete('/api/etudiant/:id', async (req, res) => {
+    const idEtud = parseInt(req.params.id, 10);
+
+    try {
+        // Supprimer d'abord les notes et réclamations (si contraintes FK)
+        await pool.query('DELETE FROM reclamation WHERE id_etudiant = $1', [idEtud]);
+        await pool.query('DELETE FROM note WHERE id_etudiant = $1', [idEtud]);
+
+        // Ensuite l'étudiant
+        const result = await pool.query('DELETE FROM etudiant WHERE id_etudiant = $1', [idEtud]);
+
+        if (result.rowCount > 0) {
+            res.status(200).json({ message: "Étudiant supprimé avec succès" });
+        } else {
+            res.status(404).json({ message: "Étudiant non trouvé" });
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Erreur serveur" });
+    }
+});
+
 
 
 // 3. Route pour récupérer la liste des UE existantes

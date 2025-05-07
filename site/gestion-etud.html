@@ -3,58 +3,148 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Gestion de l'étudiant</title>
     <link rel="stylesheet" href="CSS/style_prof.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script> 
 </head>
 <body>
     <nav>
         <ul>
             <li><a href="/admin">Home</a></li>
-            <li><a href="/gestion-utilisateurs">Liste des etudiants</a></li>
+            <li><a href="/gestion-utilisateurs">Liste des étudiants</a></li>
             <li><a href="/acceuil">Déconnexion</a></li>
         </ul>
     </nav>
     <div class="container">
-        <h2>Gestion de l'etudiant</h2>
+        <h2>Gestion de l'étudiant</h2>
         <div id="etud-info"></div>
         
-        <h3>modifier Classe</h3>
+        <h3>Modifier la classe</h3>
         <form id="ClasseForm">
             <select id="classeSelect" required></select>
             <button type="submit">Assigner</button>
         </form>
         
-        <h3>Modifier les Informations</h3>
+        <h3>Modifier les informations</h3>
         <form id="etudForm">
             <input type="text" id="nom" name="nom" placeholder="Nom" required>
-            <input type="password" id="password" name="password" placeholder="mots de passe" required>
+            <input type="password" id="password" name="password" placeholder="Mot de passe" required>
             <button type="submit">Modifier</button>
         </form>
         
-        <button id="deleteProf">Supprimer l'etudiant</button>
+        <button id="deleteProf">Supprimer l'étudiant</button>
     </div>
+
     <script>
         const params = new URLSearchParams(window.location.search);
         const etudId = params.get('id');
 
-        if (!etudId) {
-            alert("ID du professeur manquant.");
-            window.location.href = '/professeurs';
+        if (!etudId || isNaN(parseInt(etudId))) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Erreur',
+                text: "ID de l'étudiant manquant ou invalide."
+            }).then(() => {
+                window.location.href = '/gestion-utilisateurs';
+            });
         }
 
-        // Charger les infos du professeur
+        // Charger les infos de l'étudiant
         fetch(`/api/etudiant/${etudId}`)
             .then(res => res.json())
             .then(data => {
-                document.getElementById('professeur-info').innerHTML = `
+                document.getElementById('etud-info').innerHTML = `
                     <p><strong>Nom:</strong> ${data.nom}</p>
-                    <p><strong>Email:</strong> ${data.email}</p>
+                    <p><strong>Mot de passe:</strong> ${data.mot_de_passe}</p>
                 `;
                 document.getElementById('nom').value = data.nom;
-                document.getElementById('email').value = data.email;
+                document.getElementById('password').value = data.mot_de_passe;
             })
-            .catch(err => console.error('Erreur:', err));
+            .catch(err => {
+                console.error('Erreur:', err);
+                Swal.fire('Erreur', "Impossible de charger les données.", 'error');
+            });
 
-        </script>
+        // Remplir la liste des classes
+        fetch('/api/classes')
+            .then(res => res.json())
+            .then(classes => {
+                const select = document.getElementById('classeSelect');
+                classes.forEach(classe => {
+                    const option = document.createElement('option');
+                    option.value = classe.id_classe;
+                    option.textContent = `${classe.nom} (Année ${classe.annee})`;
+                    select.appendChild(option);
+                });
+            })
+            .catch(err => {
+                console.error('Erreur chargement classes:', err);
+                Swal.fire('Erreur', "Impossible de charger les classes.", 'error');
+            });
+
+        // Modifier les infos de l'étudiant
+        document.getElementById('etudForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nom = document.getElementById('nom').value;
+            const mot_de_passe = document.getElementById('password').value;
+
+            try {
+                const res = await fetch(`/api/etudiant/${etudId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nom, mot_de_passe })
+                });
+                const data = await res.json();
+                Swal.fire('Succès', data.message || 'Modification réussie', 'success');
+            } catch (err) {
+                console.error('Erreur:', err);
+                Swal.fire('Erreur', 'Échec de la modification', 'error');
+            }
+        });
+
+        // Changer la classe
+        document.getElementById('ClasseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id_classe = document.getElementById('classeSelect').value;
+
+            try {
+                const res = await fetch(`/api/etudiant/${etudId}/classe`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id_classe })
+                });
+                const data = await res.json();
+                Swal.fire('Succès', data.message || 'Classe mise à jour', 'success');
+            } catch (err) {
+                console.error('Erreur:', err);
+                Swal.fire('Erreur', 'Échec du changement de classe', 'error');
+            }
+        });
+
+        // Supprimer l'étudiant
+        document.getElementById('deleteProf').addEventListener('click', async () => {
+            const result = await Swal.fire({
+                title: 'Êtes-vous sûr ?',
+                text: "Cette action est irréversible !",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Oui, supprimer',
+                cancelButtonText: 'Annuler'
+            });
+
+            if (result.isConfirmed) {
+                try {
+                    const res = await fetch(`/api/etudiant/${etudId}`, { method: 'DELETE' });
+                    const data = await res.json();
+                    Swal.fire('Supprimé', data.message, 'success').then(() => {
+                        window.location.href = '/gestion-utilisateurs';
+                    });
+                } catch (err) {
+                    console.error('Erreur suppression:', err);
+                    Swal.fire('Erreur', "Échec de la suppression", 'error');
+                }
+            }
+        });
+    </script>
 </body>
 </html>
